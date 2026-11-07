@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Misión Cumpleaños Evan - 6 Años</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #020617; color: white;
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden; touch-action: none; /* Evita que la pantalla haga scroll al jugar */
+        }
+        
+        .font-space { font-family: 'Orbitron', sans-serif; }
+        
+        #app-container {
+            position: relative; width: 100%; height: 100%; max-width: 600px; margin: 0 auto;
+            background: #000; overflow: hidden; box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);
+        }
+
+        /* FONDO DE EVAN (SEMI-TRANSPARENTE PARA NO TAPAR EL JUEGO) */
+        #space-bg {
+            position: absolute; inset: 0; z-index: 0;
+            background-image: url('WhatsApp Image 2026-11-07 at 2.43.08 PM.jpg');
+            background-size: cover; background-position: center top;
+            opacity: 0.35; filter: contrast(1.2) brightness(0.8);
+        }
+
+        /* ESTRELLAS ANIMADAS */
+        .stars { position: absolute; inset: 0; z-index: 1; background: transparent; }
+        .stars::after {
+            content: ""; position: absolute; top: -100px; left: 0; width: 100%; height: 200%;
+            background-image: radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0,0,0,0)), radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0,0,0,0)), radial-gradient(2px 2px at 90px 40px, #ffffff, rgba(0,0,0,0));
+            background-repeat: repeat; background-size: 200px 200px;
+            animation: moveStars 10s linear infinite; opacity: 0.5;
+        }
+        @keyframes moveStars { from { transform: translateY(0); } to { transform: translateY(200px); } }
+
+        canvas { position: absolute; inset: 0; z-index: 10; display: none; }
+
+        /* PANTALLAS DE INTERFAZ */
+        .screen {
+            position: absolute; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(5px);
+            transition: opacity 0.5s; padding: 20px; text-align: center;
+        }
+        .hidden-screen { opacity: 0; pointer-events: none; }
+
+        .btn-space {
+            background: linear-gradient(45deg, #0284c7, #2563eb);
+            border: 2px solid #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+            padding: 12px 30px; border-radius: 50px; font-weight: bold;
+            letter-spacing: 2px; text-transform: uppercase; transition: transform 0.2s;
+        }
+        .btn-space:active { transform: scale(0.95); }
+
+        .input-space {
+            width: 100%; max-width: 300px; background: rgba(15, 23, 42, 0.8);
+            border: 2px solid #38bdf8; color: white; padding: 15px;
+            border-radius: 10px; font-size: 1.1rem; text-align: center; outline: none;
+            box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.3); margin-bottom: 20px;
+        }
+        .input-space:focus { border-color: #fcd34d; box-shadow: inset 0 0 10px rgba(252, 211, 77, 0.5); }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="space-bg"></div>
+    <div class="stars"></div>
+
+    <!-- PANTALLA 1: REGISTRO DEL CADETE -->
+    <div id="screen-intro" class="screen">
+        <h1 class="font-space text-4xl text-sky-400 mb-2 drop-shadow-[0_0_10px_rgba(56,189,248,0.8)]">MISIÓN EVAN</h1>
+        <h2 class="font-space text-2xl text-yellow-400 mb-8 tracking-widest">6 AÑOS</h2>
+        
+        <p class="mb-4 text-sm text-gray-300 font-light tracking-wide">Identificación requerida para abordar:</p>
+        
+        <input type="text" id="guestName" class="input-space font-space" placeholder="Tu Nombre y Apellido" autocomplete="off">
+        
+        <button id="btnStart" class="btn-space font-space mt-4 text-white">
+            INICIAR MISIÓN
+        </button>
+    </div>
+
+    <!-- EL JUEGO (CANVAS) -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI DEL JUEGO (INSTRUCCIONES FLOTANTES) -->
+    <div id="game-ui" class="absolute top-4 left-0 w-full z-20 pointer-events-none hidden-screen text-center">
+        <p class="font-space text-yellow-400 text-sm drop-shadow-md animate-pulse">¡DISPARA A TU RESPUESTA!</p>
+        <p class="text-xs text-white mt-1">Arrastra para mover 🚀 • Toca para disparar 💥</p>
+    </div>
+
+    <!-- PANTALLA 3: RESULTADO Y ENVÍO -->
+    <div id="screen-result" class="screen hidden-screen">
+        <div id="result-icon" class="text-6xl mb-4"></div>
+        <h2 id="result-title" class="font-space text-3xl mb-4 drop-shadow-lg"></h2>
+        <p id="result-msg" class="text-gray-300 mb-8 max-w-xs text-sm leading-relaxed"></p>
+        
+        <!-- BOTÓN PARA ENVIAR WHATSAPP -->
+        <a href="#" id="btnConfirm" target="_blank" class="btn-space font-space text-white flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+            ENVIAR REPORTE
+        </a>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURACIÓN ---
+    // COLOCA AQUÍ TU NÚMERO DE WHATSAPP (Con código de país, ej: 57 para Colombia)
+    const WHATSAPP_NUMBER = "573000000000"; 
+    
+    // VARIABLES DEL JUEGO
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let gameLoopId;
+    let isPlaying = false;
+    let guestName = "";
+    
+    // Entidades
+    let ship = { x: 0, y: 0, size: 50 };
+    let bullets = [];
+    let particles = [];
+    let targets = [];
+
+    // Redimensionar canvas al contenedor
+    function resizeCanvas() {
+        const container = document.getElementById('app-container');
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        ship.y = canvas.height - 80;
+        if(ship.x === 0) ship.x = canvas.width / 2;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Inicializar los objetivos (Los planetas de Sí y No)
+    function initTargets() {
+        targets = [
+            { 
+                id: 'yes', text: 'SÍ ASISTO', emoji: '🟢', 
+                x: canvas.width * 0.25, y: 150, radius: 45, 
+                color: '#10b981', glow: '#059669', yOffset: 0, angle: 0
+            },
+            { 
+                id: 'no', text: 'NO ASISTO', emoji: '🔴', 
+                x: canvas.width * 0.75, y: 150, radius: 45, 
+                color: '#ef4444', glow: '#b91c1c', yOffset: 0, angle: Math.PI
+            }
+        ];
+    }
+
+    // Lógica principal del juego
+    function update() {
+        if(!isPlaying) return;
+
+        // Limpiar pantalla
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar Balas
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i];
+            b.y -= b.speed;
+            
+            // Dibujar láser (Rayo azul neón)
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#38bdf8';
+            ctx.fillStyle = '#bae6fd';
+            ctx.fillRect(b.x - 2, b.y, 4, 20);
+            ctx.shadowBlur = 0; // reset
+
+            // Eliminar balas que salen de pantalla
+            if (b.y < 0) bullets.splice(i, 1);
+        }
+
+        // Dibujar y animar Objetivos (Planetas)
+        targets.forEach(t => {
+            // Animación de flotar
+            t.angle += 0.03;
+            t.yOffset = Math.sin(t.angle) * 10;
+
+            // Planeta (Círculo)
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = t.glow;
+            ctx.fillStyle = t.color;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y + t.yOffset, t.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Texto del planeta
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Montserrat';
+            ctx.textAlign = 'center';
+            ctx.fillText(t.text, t.x, t.y + t.yOffset + 5);
+        });
+
+        // Dibujar Nave Espacial (Emoji)
+        ctx.font = `${ship.size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🚀', ship.x, ship.y);
+
+        // Dibujar Partículas (Explosiones)
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 2;
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 100})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // Detección de Colisiones (Bala vs Planeta)
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i];
+            for (let j = targets.length - 1; j >= 0; j--) {
+                let t = targets[j];
+                let dist = Math.hypot(b.x - t.x, b.y - (t.y + t.yOffset));
+                
+                if (dist < t.radius) {
+                    // ¡COLISIÓN!
+                    createExplosion(t.x, t.y + t.yOffset, t.color);
+                    bullets.splice(i, 1);
+                    endGame(t.id); // Terminar juego con la decisión
+                    return; // Salir del update
+                }
+            }
+        }
+
+        gameLoopId = requestAnimationFrame(update);
+    }
+
+    // Función para crear partículas de explosión
+    function createExplosion(x, y, color) {
+        for(let i=0; i<30; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 100, size: Math.random() * 4 + 2
+            });
+        }
+    }
+
+    // Disparar
+    function fireBullet() {
+        if(!isPlaying) return;
+        bullets.push({ x: ship.x, y: ship.y - 30, speed: 10 });
+    }
+
+    // Controles táctiles y de ratón
+    const appContainer = document.getElementById('app-container');
+    
+    appContainer.addEventListener('touchmove', (e) => {
+        if(!isPlaying) return;
+        e.preventDefault(); 
+        let rect = canvas.getBoundingClientRect();
+        ship.x = e.touches[0].clientX - rect.left;
+    }, {passive: false});
+
+    appContainer.addEventListener('mousemove', (e) => {
+        if(!isPlaying) return;
+        let rect = canvas.getBoundingClientRect();
+        ship.x = e.clientX - rect.left;
+    });
+
+    appContainer.addEventListener('touchstart', (e) => {
+        if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+            fireBullet();
+        }
+    });
+    
+    appContainer.addEventListener('mousedown', (e) => {
+        if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+            fireBullet();
+        }
+    });
+
+    // --- FLUJO DE PANTALLAS ---
+
+    document.getElementById('btnStart').addEventListener('click', () => {
+        const nameInput = document.getElementById('guestName').value.trim();
+        if(nameInput === "") {
+            alert("Cadete, ingresa tu nombre para iniciar la misión.");
+            return;
+        }
+        guestName = nameInput;
+
+        // Ocultar Intro, Mostrar Juego
+        document.getElementById('screen-intro').classList.add('hidden-screen');
+        document.getElementById('game-ui').classList.remove('hidden-screen');
+        canvas.style.display = 'block';
+        
+        resizeCanvas();
+        initTargets();
+        isPlaying = true;
+        update();
+    });
+
+    function endGame(choice) {
+        isPlaying = false;
+        cancelAnimationFrame(gameLoopId);
+        
+        // Dejar que se dibuje la explosión un momento
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for(let p of particles) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 100})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        }
+
+        setTimeout(() => {
+            canvas.style.display = 'none';
+            document.getElementById('game-ui').classList.add('hidden-screen');
+            showResult(choice);
+        }, 800);
+    }
+
+    function showResult(choice) {
+        const screenResult = document.getElementById('screen-result');
+        const rTitle = document.getElementById('result-title');
+        const rMsg = document.getElementById('result-msg');
+        const rIcon = document.getElementById('result-icon');
+        const btnConfirm = document.getElementById('btnConfirm');
+
+        screenResult.classList.remove('hidden-screen');
+
+        let msgWhatsApp = "";
+
+        if (choice === 'yes') {
+            rIcon.innerHTML = "🌟";
+            rTitle.innerHTML = "<span class='text-green-400'>¡OBJETIVO DESTRUIDO!</span>";
+            rMsg.innerText = `¡Excelente trabajo, Cadete ${guestName}! Prepararemos tu equipo espacial para la gran fiesta de Evan.`;
+            msgWhatsApp = `🚀 ¡Misión Aceptada! Soy ${guestName} y CONFIRMO MI ASISTENCIA al cumpleaños espacial de Evan. ¡Allá nos vemos!`;
+        } else {
+            rIcon.innerHTML = "🛸";
+            rTitle.innerHTML = "<span class='text-red-400'>MISIÓN ABORTADA</span>";
+            rMsg.innerText = `Entendido, Cadete ${guestName}. Te echaremos de menos en la base espacial.`;
+            msgWhatsApp = `🛸 Misión Abortada. Soy ${guestName} y tristemente NO PODRÉ ASISTIR al cumpleaños de Evan. ¡Que se diviertan mucho!`;
+        }
+
+        // Crear el enlace de WhatsApp
+        const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msgWhatsApp)}`;
+        btnConfirm.href = waLink;
+    }
+</script>
+</body>
+</html>
